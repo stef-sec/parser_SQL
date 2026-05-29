@@ -15,6 +15,7 @@ SELECT kolumna1, kolumna2 FROM tabela WHERE id > 10
 
 - rozpoznaje `SELECT`, `FROM` i opcjonalne `WHERE`;
 - dzieli wejście na tokeny: słowa kluczowe, identyfikatory, liczby, tekst, przecinki i operatory;
+- obsługuje pojedynczy `JOIN` oraz łańcuch warunków w `WHERE` z `AND` / `OR`;
 - zwraca wynik jako słownik Pythona;
 - zgłasza czytelne błędy, gdy zapytanie nie pasuje do gramatyki.
 
@@ -32,7 +33,7 @@ SELECT kolumna1, kolumna2 FROM tabela WHERE id > 10
 ### Minimalna gramatyka
 
 ```text
-query      -> SELECT columns FROM table [WHERE condition]
+query      -> SELECT columns FROM table [JOIN table ON condition] [WHERE condition (AND|OR condition)*]
 columns    -> * | column (, column)*
 condition  -> identifier operator value
 operator   -> = | > | <

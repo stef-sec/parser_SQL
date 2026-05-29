@@ -26,7 +26,7 @@ class Token:
 	column: int
 
 
-KEYWORDS = {"SELECT", "FROM", "WHERE"}
+KEYWORDS = {"SELECT", "FROM", "WHERE", "JOIN", "ON", "AND", "OR"}
 OPERATORS = {"=", ">", "<"}
 
 
@@ -187,8 +187,11 @@ class Parser:
 			"table": table,
 		}
 
+		if self.match("KEYWORD", "JOIN"):
+			result["join"] = self.parse_join()
+
 		if self.match("KEYWORD", "WHERE"):
-			result["where"] = self.parse_condition()
+			result["where"] = self.parse_condition_chain()
 
 		return result
 
@@ -200,6 +203,14 @@ class Parser:
 		while self.match("COMMA"):
 			columns.append(self.expect("IDENTIFIER").value)
 		return columns
+
+	def parse_join(self) -> dict[str, Any]:
+		joined_table = self.expect("IDENTIFIER").value
+		self.expect("KEYWORD", "ON")
+		return {
+			"table": joined_table,
+			"on": self.parse_condition(),
+		}
 
 	def parse_condition(self) -> dict[str, Any]:
 		left = self.expect("IDENTIFIER").value
@@ -224,6 +235,25 @@ class Parser:
 			)
 
 		return {"left": left, "op": operator, "right": right}
+
+	def parse_condition_chain(self) -> dict[str, Any]:
+		conditions = [self.parse_condition()]
+		connectors: list[str] = []
+
+		while True:
+			if self.match("KEYWORD", "AND"):
+				connectors.append("AND")
+			elif self.match("KEYWORD", "OR"):
+				connectors.append("OR")
+			else:
+				break
+
+			conditions.append(self.parse_condition())
+
+		return {
+			"conditions": conditions,
+			"connectors": connectors,
+		}
 
 
 def parse_sql(text: str) -> dict[str, Any]:
