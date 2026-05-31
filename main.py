@@ -1,10 +1,9 @@
-"""Mini-SQL parser for a limited SELECT grammar.
+"""Mini-parser SQL dla prostego SELECT.
 
-Supported shape:
+Obsługiwany zapis:
 	SELECT column1, column2 FROM table WHERE id > 10
 
-The parser returns a dictionary that describes the query structure and
-does not connect to any database.
+Parser zwraca słownik opisujący strukturę zapytania i nie łączy się z bazą.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from typing import Any
 
 
 class ParseError(ValueError):
-	"""Raised when the input query does not match the grammar."""
+	"""Błąd zgłaszany, gdy zapytanie nie pasuje do gramatyki."""
 
 
 @dataclass(frozen=True)
@@ -31,6 +30,7 @@ OPERATORS = {"=", ">", "<"}
 
 
 def tokenize(text: str) -> list[Token]:
+	"""Dzieli tekst zapytania na tokeny: słowa, liczby, operatory i znaki specjalne."""
 	tokens: list[Token] = []
 	index = 0
 	line = 1
@@ -135,20 +135,26 @@ def tokenize(text: str) -> list[Token]:
 
 
 class Parser:
+	"""Analizuje listę tokenów i buduje słownik z wynikiem parsowania."""
+
 	def __init__(self, tokens: list[Token]) -> None:
+		"""Zapisuje tokeny i ustawia bieżącą pozycję na początek."""
 		self.tokens = tokens
 		self.position = 0
 
 	def current(self) -> Token:
+		"""Zwraca aktualny token bez przesuwania pozycji."""
 		return self.tokens[self.position]
 
 	def advance(self) -> Token:
+		"""Przesuwa się na następny token i zwraca token bieżący."""
 		token = self.current()
 		if token.kind != "EOF":
 			self.position += 1
 		return token
 
 	def match(self, kind: str, value: str | None = None) -> bool:
+		"""Sprawdza token i zużywa go tylko wtedy, gdy pasuje do wzorca."""
 		token = self.current()
 		if token.kind != kind:
 			return False
@@ -158,6 +164,7 @@ class Parser:
 		return True
 
 	def expect(self, kind: str, value: str | None = None) -> Token:
+		"""Wymaga konkretnego tokenu i zgłasza błąd, jeśli go brakuje."""
 		token = self.current()
 		if token.kind != kind or (value is not None and token.value != value):
 			if value is None:
@@ -171,11 +178,13 @@ class Parser:
 		return token
 
 	def parse(self) -> dict[str, Any]:
+		"""Startuje analizę i sprawdza, czy po zapytaniu nie zostały śmieciowe tokeny."""
 		query = self.parse_select()
 		self.expect("EOF")
 		return query
 
 	def parse_select(self) -> dict[str, Any]:
+		"""Parsuje główną konstrukcję SELECT ... FROM ... [JOIN ...] [WHERE ...]."""
 		self.expect("KEYWORD", "SELECT")
 		columns = self.parse_columns()
 		self.expect("KEYWORD", "FROM")
@@ -196,6 +205,7 @@ class Parser:
 		return result
 
 	def parse_columns(self) -> list[str]:
+		"""Parsuje listę kolumn albo gwiazdkę zastępującą wszystkie kolumny."""
 		if self.match("STAR"):
 			return ["*"]
 
@@ -205,6 +215,7 @@ class Parser:
 		return columns
 
 	def parse_join(self) -> dict[str, Any]:
+		"""Parsuje jeden JOIN z warunkiem ON."""
 		joined_table = self.expect("IDENTIFIER").value
 		self.expect("KEYWORD", "ON")
 		return {
@@ -213,6 +224,7 @@ class Parser:
 		}
 
 	def parse_condition(self) -> dict[str, Any]:
+		"""Parsuje pojedynczy warunek w formacie lewa_strona operator prawa_strona."""
 		left = self.expect("IDENTIFIER").value
 		operator = self.expect("OPERATOR").value
 
@@ -237,6 +249,7 @@ class Parser:
 		return {"left": left, "op": operator, "right": right}
 
 	def parse_condition_chain(self) -> dict[str, Any]:
+		"""Parsuje warunki po WHERE połączone AND albo OR."""
 		conditions = [self.parse_condition()]
 		connectors: list[str] = []
 
@@ -257,7 +270,7 @@ class Parser:
 
 
 def parse_sql(text: str) -> dict[str, Any]:
-	"""Parse a mini-SQL SELECT query and return its dictionary form."""
+	"""Sprawdza wejście, uruchamia tokenizację i parser, a potem zwraca słownik."""
 
 	if not text or not text.strip():
 		raise ParseError("Query cannot be empty")
@@ -268,6 +281,7 @@ def parse_sql(text: str) -> dict[str, Any]:
 
 
 def main() -> None:
+	"""Uruchamia program z linii poleceń i wypisuje wynik lub błąd parsowania."""
 	if len(sys.argv) > 1:
 		query = " ".join(sys.argv[1:])
 	else:
